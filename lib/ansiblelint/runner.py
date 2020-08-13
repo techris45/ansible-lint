@@ -1,12 +1,14 @@
 """Runner implementation."""
 import logging
 import os
+import subprocess
 from typing import TYPE_CHECKING, Any, FrozenSet, Generator, List, Set
 
 import ansiblelint.file_utils
 import ansiblelint.skip_utils
 import ansiblelint.utils
 from ansiblelint.errors import MatchError
+from ansiblelint.rules.AnsibleSyntaxCheckRule import AnsibleSyntaxCheckRule
 from ansiblelint.rules.LoadingFailureRule import LoadingFailureRule
 
 if TYPE_CHECKING:
@@ -87,6 +89,27 @@ class Runner(object):
                 "Examining %s of type %s",
                 ansiblelint.file_utils.normpath(file['path']),
                 file['type'])
+
+            # we should bother checking playbooks only if they pass Ansible syntax-check
+            if file['type'] == 'playbook':
+                result = subprocess.run(
+                    ['ansible-playbook', '--syntax-check', file['path']],
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    shell=False,  # needed when command is a list
+                    universal_newlines=True,
+                    check=False
+                )
+                if result.returncode != 0:
+                    matches.add(MatchError(
+                        message="Ansible syntax-check failed, maybe file is not a playbook.",
+                        details="\n".join([result.stdout, result.stderr]),
+                        filename=file['path'],
+                        rule=AnsibleSyntaxCheckRule
+                    ))
+                    continue
+
             matches = matches.union(
                 self.rules.run(file, tags=set(self.tags),
                                skip_list=self.skip_list))

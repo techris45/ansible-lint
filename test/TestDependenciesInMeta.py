@@ -3,6 +3,7 @@ import pytest
 from ansiblelint.runner import Runner
 
 
+@pytest.mark.xfail(reason="Needs rework to pass syntax check")
 @pytest.mark.parametrize(
     'filename',
     (

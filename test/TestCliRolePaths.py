@@ -92,17 +92,18 @@ class TestCliRolePaths(unittest.TestCase):
         "GITHUB_ACTIONS": "true",
         "GITHUB_WORKFLOW": "foo"
     }),
-    (False, None)),
+    (False, {})),
     ids=("on", "off"))
 def test_run_playbook_github(result, env):
     """Call ansible-lint simulating GitHub Actions environment."""
     cwd = str(Path(__file__).parent.parent.resolve())
     role_path = 'examples/example.yml'
 
+    env['PATH'] = os.environ['PATH']
     result_gh = run_ansible_lint(cwd=cwd, role_path=role_path, env=env)
 
     expected = (
-        '::error file=examples/example.yml,line=47::[E101] '
-        'Deprecated always_run'
+        '::warning file=examples/example.yml,line=44::[E403] '
+        'Package installs should not use latest'
     )
     assert (expected in str(result_gh)) is result

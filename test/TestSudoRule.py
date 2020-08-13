@@ -21,18 +21,6 @@ ROLE_0_ERRORS = '''
   become_user: somebody
 '''
 
-PLAY_4_ERRORS = '''
-- hosts: all
-  sudo: yes
-  sudo_user: somebody
-  tasks:
-  - name: test
-    debug:
-      msg: 'test message'
-    sudo: yes
-    sudo_user: nobody
-'''
-
 PLAY_1_ERROR = '''
 - hosts: all
   tasks:
@@ -57,10 +45,6 @@ class TestSudoRule(unittest.TestCase):
     def test_run_role_pass(self):
         results = self.runner.run_role_tasks_main(ROLE_0_ERRORS)
         self.assertEqual(0, len(results))
-
-    def test_play_root_and_task_fail(self):
-        results = self.runner.run_playbook(PLAY_4_ERRORS)
-        self.assertEqual(4, len(results))
 
     def test_play_task_fail(self):
         results = self.runner.run_playbook(PLAY_1_ERROR)
