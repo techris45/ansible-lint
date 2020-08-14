@@ -12,6 +12,7 @@ import ansiblelint.utils
 from ansiblelint.errors import MatchError
 from ansiblelint.skip_utils import append_skipped_rules, get_rule_skips_from_line
 
+
 _logger = logging.getLogger(__name__)
 
 
@@ -160,6 +161,19 @@ class AnsibleLintRule(object):
         return matches
 
 
+class YamllintRule(AnsibleLintRule):
+    id = 'YAML:'
+    shortdesc = 'YAML'
+    description = ''
+    severity = 'VERY_LOW'
+    tags = ['formatting']
+    version_added = 'v4.3.0'
+
+    def __init__(self, id=""):
+        # customize id by adding the one reported by yamllint
+        self.id = self.__class__.id + id
+
+
 def load_plugins(directory: str) -> List[AnsibleLintRule]:
     """Return a list of rule classes."""
     result = []
@@ -217,6 +231,24 @@ class RulesCollection(object):
                 playbookfile['path'],
                 e.strerror)
             return matches
+
+        # yamllint
+        try:
+            from yamllint.config import YamlLintConfig
+            from yamllint.linter import run as run_yamllint
+            yaml_config = YamlLintConfig('extends: default')
+            for p in run_yamllint(text, yaml_config):
+                print(p.desc, p.line, p.rule)
+                matches.append(
+                    MatchError(
+                        message=p.desc,
+                        linenumber=p.line,
+                        details="",
+                        filename=playbookfile['path'],
+                        rule=YamllintRule(id=p.rule)))
+        except ImportError:
+            pass
+        # import pdb; pdb.set_trace()
 
         for rule in self.rules:
             if not tags or not set(rule.tags).union([rule.id]).isdisjoint(tags):
