@@ -84,24 +84,30 @@ def choose_formatter_factory(
     return r
 
 
-def report_outcome(matches: List["MatchError"], options) -> int:
+def report_outcome(matches: List["MatchError"], checked_files: Set[str], options) -> int:
     """Display information about how to skip found rules.
 
     Returns exit code, 2 if errors were found, 0 when only warnings were found.
     """
-    failure = False
+    failures = 0
+    warnings = 0
     msg = """\
 You can skip specific rules or tags by adding them to your configuration file:
 ```yaml
 # .ansible-lint
 warn_list:  # or 'skip_list' to silence them completely
 """
-
+    # counting
     matched_rules = {match.rule.id: match.rule for match in matches}
+    for match in matches:
+        if {match.rule.id, *match.rule.tags}.isdisjoint(options.warn_list):
+            failures += 1
+        else:
+            warnings += 1
+
     for id in sorted(matched_rules.keys()):
         if {id, *matched_rules[id].tags}.isdisjoint(options.warn_list):
             msg += f"  - '{id}'  # {matched_rules[id].shortdesc}\n"
-            failure = True
     for match in matches:
         if "experimental" in match.rule.tags:
             msg += "  - experimental  # all rules tagged as experimental\n"
@@ -110,8 +116,12 @@ warn_list:  # or 'skip_list' to silence them completely
 
     if matches and not options.quiet:
         console_stderr.print(Markdown(msg))
+        files = len(checked_files)
+        console_stderr.print(
+            f"Finished with {failures} failures, {warnings} warnings, {files} files"
+        )
 
-    if failure:
+    if failures:
         return 2
     else:
         return 0
@@ -178,7 +188,7 @@ def main() -> int:
             print(formatter.format(match))
 
     if matches:
-        return report_outcome(matches, options=options)
+        return report_outcome(matches, checked_files, options=options)
     else:
         return 0
 
